@@ -1,0 +1,29 @@
+root = true
+
+[*]
+end_of_line = lf
+charset = utf-8
+indent_style = space
+insert_final_newline = true
+
+[*.sln]
+charset = utf-8-bom
+indent_style = tab
+end_of_line = crlf
+
+[*.csproj]
+indent_size = 2
+end_of_line = crlf
+
+[*.cs]
+indent_size = 4
+end_of_line = crlf
+
+[*.{js,cjs,json}]
+indent_size = 2
+
+[*.{ts,tsx}]
+indent_size = 4
+
+[*.css]
+indent_size = 2

@@ -1,0 +1,72 @@
+name: NuGet
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - '*'
+  release:
+    types:
+    - published
+
+env:
+  NUGET_PACKAGES_PATH: ${{ github.workspace }}/nupkgs
+
+jobs:
+  run_tests:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: 8.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    # TODO: tests
+    #- name: Run tests
+    #  run: dotnet test --configuration Release
+
+  build_nuget:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: 8.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    - name: Pack
+      run: dotnet pack --configuration Release --no-build --output ${{ env.NUGET_PACKAGES_PATH }}
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: nuget
+        if-no-files-found: error
+        retention-days: 7
+        path: ${{ env.NUGET_PACKAGES_PATH }}/*.nupkg
+
+  publish_nuget:
+    if: github.event_name == 'release'
+    needs: [ run_tests, build_nuget ]
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: nuget
+        path: ${{ env.NUGET_PACKAGES_PATH }}
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: 8.0.x
+    - name: Push
+      run: dotnet nuget push "${{ env.NUGET_PACKAGES_PATH }}/*.nupkg" --skip-duplicate --api-key "${{ secrets.NUGET_APIKEY }}"
