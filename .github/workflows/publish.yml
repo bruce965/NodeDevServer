@@ -69,4 +69,4 @@ jobs:
       with:
         dotnet-version: 8.0.x
     - name: Push
-      run: dotnet nuget push "${{ env.NUGET_PACKAGES_PATH }}/*.nupkg" --skip-duplicate --api-key "${{ secrets.NUGET_APIKEY }}"
+      run: dotnet nuget push "${{ env.NUGET_PACKAGES_PATH }}/*.nupkg" --skip-duplicate --api-key "${{ secrets.NUGET_APIKEY }}" --source https://api.nuget.org/v3/index.json
