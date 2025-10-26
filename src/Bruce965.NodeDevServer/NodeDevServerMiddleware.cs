@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Fabio Iotti <info@fabioiotti.com>
+// SPDX-FileCopyrightText: 2024-2025 Fabio Iotti <info@fabioiotti.com>
 // SPDX-License-Identifier: MIT
 
 using System.Buffers;
@@ -12,6 +12,15 @@ using Microsoft.Net.Http.Headers;
 
 namespace Bruce965.NodeDevServer;
 
+class NodeDevServerTrapMiddleware(
+    IOptions<NodeDevServerOptions> options,
+    HttpClient client,
+    NodeDevServerManager server
+) : NodeDevServerMiddleware(options, client, server)
+{
+    internal override bool Trap => true;
+}
+
 class NodeDevServerMiddleware : IMiddleware, IDisposable
 {
     readonly HttpClient _client;
@@ -23,6 +32,8 @@ class NodeDevServerMiddleware : IMiddleware, IDisposable
     readonly int _port;
 
     readonly SemaphoreSlim _semaphore = new(1);
+
+    virtual internal bool Trap => false;
 
     public NodeDevServerMiddleware(
         IOptions<NodeDevServerOptions> options,
@@ -40,6 +51,14 @@ class NodeDevServerMiddleware : IMiddleware, IDisposable
 
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
+        if (!Trap)
+        {
+            await next(context);
+
+            if (context.Response.HasStarted || context.Response.StatusCode is not StatusCodes.Status404NotFound)
+                return;
+        }
+
         bool accepted = await TryForwardToNodeDevServerAsync(context);
 
         // If failed to connect to a Node development server, and the local Node
@@ -111,7 +130,7 @@ class NodeDevServerMiddleware : IMiddleware, IDisposable
                 else
                     contentHeaderAdded = request.Content.Headers.TryAddWithoutValidation(key, values.ToArray());
             }
-            
+
             if (!contentHeaderAdded)
             {
                 if (values.Count is 0)
@@ -128,8 +147,10 @@ class NodeDevServerMiddleware : IMiddleware, IDisposable
             {
                 response = await _client.SendAsync(request, context.RequestAborted);
             }
-            catch (HttpRequestException ex) when (ex is {
-                InnerException: SocketException {
+            catch (HttpRequestException ex) when (ex is
+            {
+                InnerException: SocketException
+                {
                     SocketErrorCode: SocketError.ConnectionRefused,
                 },
             })
@@ -167,7 +188,7 @@ class NodeDevServerMiddleware : IMiddleware, IDisposable
         using ClientWebSocket socketWithDevServer = new();
 
         Uri uri = BuildRequestUri(context.Request, webSocket: true);
-        
+
         if (context.Request.Headers.TryGetValue("Sec-WebSocket-Protocol", out StringValues protocols))
             foreach (string? protocol in protocols)
                 if (protocol is not null)
@@ -185,9 +206,12 @@ class NodeDevServerMiddleware : IMiddleware, IDisposable
         {
             await socketWithDevServer.ConnectAsync(uri, _client, context.RequestAborted).ConfigureAwait(false);
         }
-        catch (WebSocketException ex) when (ex is {
-            InnerException: HttpRequestException {
-                InnerException: SocketException {
+        catch (WebSocketException ex) when (ex is
+        {
+            InnerException: HttpRequestException
+            {
+                InnerException: SocketException
+                {
                     SocketErrorCode: SocketError.ConnectionRefused,
                 },
             },
@@ -228,7 +252,7 @@ class NodeDevServerMiddleware : IMiddleware, IDisposable
             ForwardMessages(socketWithClient, socketWithDevServer),
             ForwardMessages(socketWithDevServer, socketWithClient)
         );
-        
+
         return true;
     }
 

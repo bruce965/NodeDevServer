@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <PackageVersion>1.0.0</PackageVersion>
+    <PackageVersion>1.1.0</PackageVersion>
     <InformationalVersion>$(PackageVersion)</InformationalVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
